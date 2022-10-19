@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: nginx-hi
+  name: hi
+  namespace: ing-internal
+spec:
+  ports:
+  - port: 5678
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx-hi
+status:
+  loadBalancer: {}

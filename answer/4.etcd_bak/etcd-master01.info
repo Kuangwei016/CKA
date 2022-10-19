@@ -1,0 +1,82 @@
+Name:                 etcd-master01
+Namespace:            kube-system
+Priority:             2000001000
+Priority Class Name:  system-node-critical
+Node:                 master01/192.168.1.11
+Start Time:           Wed, 12 Jan 2022 08:02:56 +0000
+Labels:               component=etcd
+                      tier=control-plane
+Annotations:          kubeadm.kubernetes.io/etcd.advertise-client-urls: https://192.168.1.11:2379
+                      kubernetes.io/config.hash: a83a1193eb16e4a47c8cae87414e14e6
+                      kubernetes.io/config.mirror: a83a1193eb16e4a47c8cae87414e14e6
+                      kubernetes.io/config.seen: 2022-01-12T08:02:49.949270822Z
+                      kubernetes.io/config.source: file
+Status:               Running
+IP:                   192.168.1.11
+IPs:
+  IP:           192.168.1.11
+Controlled By:  Node/master01
+Containers:
+  etcd:
+    Container ID:  docker://742006ad06ff69b1eb2b1fe0b96614ae88ca023569c602a76dd7b85ea17364da
+    Image:         registry.aliyuncs.com/google_containers/etcd:3.4.13-0
+    Image ID:      docker-pullable://registry.aliyuncs.com/google_containers/etcd@sha256:4ad90a11b55313b182afc186b9876c8e891531b8db4c9bf1541953021618d0e2
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      etcd
+      --advertise-client-urls=https://192.168.1.11:2379
+      --cert-file=/etc/kubernetes/pki/etcd/server.crt
+      --client-cert-auth=true
+      --data-dir=/var/lib/etcd
+      --initial-advertise-peer-urls=https://192.168.1.11:2380
+      --initial-cluster=master01=https://192.168.1.11:2380
+      --key-file=/etc/kubernetes/pki/etcd/server.key
+      --listen-client-urls=https://127.0.0.1:2379,https://192.168.1.11:2379
+      --listen-metrics-urls=http://127.0.0.1:2381
+      --listen-peer-urls=https://192.168.1.11:2380
+      --name=master01
+      --peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt
+      --peer-client-cert-auth=true
+      --peer-key-file=/etc/kubernetes/pki/etcd/peer.key
+      --peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+      --snapshot-count=10000
+      --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+    State:          Running
+      Started:      Thu, 13 Jan 2022 00:00:58 +0000
+    Last State:     Terminated
+      Reason:       Error
+      Exit Code:    255
+      Started:      Wed, 12 Jan 2022 08:02:31 +0000
+      Finished:     Thu, 13 Jan 2022 00:00:02 +0000
+    Ready:          True
+    Restart Count:  1
+    Requests:
+      cpu:                100m
+      ephemeral-storage:  100Mi
+      memory:             100Mi
+    Liveness:             http-get http://127.0.0.1:2381/health delay=10s timeout=15s period=10s #success=1 #failure=8
+    Startup:              http-get http://127.0.0.1:2381/health delay=10s timeout=15s period=10s #success=1 #failure=24
+    Environment:          <none>
+    Mounts:
+      /etc/kubernetes/pki/etcd from etcd-certs (rw)
+      /var/lib/etcd from etcd-data (rw)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             True 
+  ContainersReady   True 
+  PodScheduled      True 
+Volumes:
+  etcd-certs:
+    Type:          HostPath (bare host directory volume)
+    Path:          /etc/kubernetes/pki/etcd
+    HostPathType:  DirectoryOrCreate
+  etcd-data:
+    Type:          HostPath (bare host directory volume)
+    Path:          /var/lib/etcd
+    HostPathType:  DirectoryOrCreate
+QoS Class:         Burstable
+Node-Selectors:    <none>
+Tolerations:       :NoExecute op=Exists
+Events:            <none>

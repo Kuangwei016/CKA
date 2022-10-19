@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: legacy-app
+spec:
+  containers:
+  - args:
+    - /bin/sh
+    - -c
+    - |
+      i=0; while true; do
+        echo "$(date) INFO $i" >> /var/log/legacy-ap.log;
+        i=$((i+1));
+        sleep 1;
+      done
+    image: busybox
+    name: count
+    volumeMounts:
+    - mountPath: /var/log
+      name: logs
+  - name: count-log
+    image: busybox
+    args: [/bin/sh, -c, 'tail -n+1 -f /var/log/legacy-ap.log']
+    volumeMounts:
+    - name: logs
+      mountPath: /var/log
+  volumes:
+  - emptyDir: {}
+    name: logs
