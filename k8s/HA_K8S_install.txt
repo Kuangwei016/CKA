@@ -1,0 +1,73 @@
+# 文章来源: https://www.cnblogs.com/lfl17718347843/p/13417304.html
+#使用kubeadm创建高可用集群，使用nginx(upstream)或者 HAproxy（这里使用HAproxy+keepalived）
+#思路:
+- 使用keepalived的VIP绑定在三台master,并编写脚本检测haproxy进程是否存活，决定VIP漂移
+  # 例如VIP为192.168.200.16
+
+- 使用haproxy负载均衡端口，16443转发到master的6443
+  # backend kubernetes-apiserver
+    # mode        tcp
+    # balance     roundrobin
+    # server  master1 192.168.200.3:6443 check
+    # server  master2 192.168.200.4:6443 check
+    # server  master3 192.168.200.5:6443 check 
+
+- keepalived的漂移VIP + haproxy 3台master上的16443端口 = K8S集群高可用Master API (192.168.200.16:16443)
+  # 如果买的阿里云ECS，使用阿里云SLB负载均衡代替
+
+- 创建3个master,N个node的集群
+  - 使用kubeadm创建一个master1后,将master1中相关K8S配置SCP到master2和master3中，相同的kube-config.yml
+    # scp /etc/kubernetes/pki/ca.* root@192.168.200.4:/etc/kubernetes/pki/
+    # scp /etc/kubernetes/pki/sa.* root@192.168.200.4:/etc/kubernetes/pki/
+    # scp /etc/kubernetes/pki/front-proxy-ca.* root@192.168.200.4:/etc/kubernetes/pki/
+    # scp /etc/kubernetes/pki/etcd/ca.* root@192.168.200.4:/etc/kubernetes/pki/etcd/
+    # scp /etc/kubernetes/admin.conf root@192.168.200.4:/etc/kubernetes/
+  - 导出init初始化默认yml
+    # kubeadm config print init-defaults > kubeadm-config.yaml
+  - 将VIP修改进init文件中，修改为国内镜像仓库
+    # controlPlaneEndpoint: 修改VIP
+  - 从本地镜像仓库拉取images
+    # kubeadm config images pull --config kubeadm-config.yaml
+  - 初始化集群，得到加入集群的token
+    #kubeadm init --config kubeadm-config.yaml
+  - 其余master使用命令加入master集群，这里使用VIP(192.168.200.16:16443)
+    # kubeadm join 192.168.200.16:16443 --token abcdef.0123456789abcdef \
+    --discovery-token-ca-cert-hash sha256:f0489748e3b77a9a29443dae2c4c0dfe6ff4bde0daf3ca8740dd9ab6a9693a78 \
+    --control-plane    # 不同之处在这，node加入不需要 --control-plane
+
+- N个节点加入后，就有了一个多master的K8S集群
+  # kubeadm join 192.168.200.16:16443 --token abcdef.0123456789abcdef \
+    --discovery-token-ca-cert-hash sha256:f0489748e3b77a9a29443dae2c4c0dfe6ff4bde0daf3ca8740dd9ab6a9693a78
+
+- 安装网络插件
+  # kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+- 创建3个Master，就会有3个etcd
+  - 下载etcdctl客户端管理工具
+    # wget https://github.com/etcd-io/etcd/releases/download/v3.4.14/etcd-v3.4.14-linux-amd64.tar.gz
+    # tar -zxf etcd-v3.4.14-linux-amd64.tar.gz
+    # mv etcd-v3.4.14-linux-amd64/etcdctl /usr/local/bin
+    # chmod +x /usr/local/bin/
+  - etcdctl命令查看etc集群
+    # 查看etcd集群健康状态 
+    # ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --write-out=table --endpoints=192.168.200.3:2379,192.168.200.4:2379,192.168.200.5:2379 endpoint health
+    # 查看etcd高可用集群列表
+    # ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --write-out=table --endpoints=192.168.200.3:2379,192.168.200.4:2379,192.168.200.5:2379 member list
+    # 查看etcd高可用集群leader
+    # ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/peer.crt --key=/etc/kubernetes/pki/etcd/peer.key --write-out=table --endpoints=192.168.200.3:2379,192.168.200.4:2379,192.168.200.5:2379 endpoint status
+
+- 部署k8s的dashboard
+  - 下载yml，自定义端口
+    # wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+  - ssl创建自签名证书
+    # 创建key文件
+      # openssl genrsa -out dashboard.key 2048
+    # 证书请求
+      # openssl req -days 36000 -new -out dashboard.csr -key dashboard.key -subj '/CN=dashboard-cert'
+    # 自签证书
+      # openssl x509 -req -in dashboard.csr -signkey dashboard.key -out dashboard.crt
+    # 创建kubernetes-dashboard-certs对象
+      # kubectl create secret generic kubernetes-dashboard-certs --from-file=dashboard.key --from-file=dashboard.crt -n kubernetes-dashboard
+  - 使用recommended.yaml部署dashboard
+  - dashboard创建管理员并分配权限
+  - 使用管理员token访问dashboard UI

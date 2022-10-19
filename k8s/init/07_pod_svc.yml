@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-hi
+  name: nginx-hi
+  namespace: ing-internal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx-hi
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: nginx-hi
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: hi
+          mountPath: /usr/share/nginx/html/hi/
+      initContainers:
+      - name: count-log-1
+        image: busybox
+        args: [/bin/sh, -c, 'echo 1 > /usr/share/nginx/html/hi/index.html']
+        volumeMounts:
+        - name: hi
+          mountPath: /usr/share/nginx/html/hi/
+      volumes:
+      - name: hi
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    run: nginx-hi
+  name: hi
+  namespace: ing-internal
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: nginx-hi
+  type: NodePort
+status:
+  loadBalancer: {}
